@@ -27,7 +27,7 @@ from utils.dual import calMA, dewel
 
 import tensorflow as tf
 
-class FullCar():
+class FullCar(Env):
     def __init__(self,  state_num=8, 
                         steps_per_episode=2000, 
                         args=None): 

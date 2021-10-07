@@ -1,0 +1,6 @@
+[submodule "suspension"]
+	path = suspension
+	url = https://github.com/codemoo/Fullcar-Suspension-Model
+[submodule "suspension_model"]
+	path = suspension_model
+	url = https://github.com/codemoo/Fullcar-Suspension-Model
