@@ -24,6 +24,8 @@ from utils.skyhook import skyhook
 from utils.lqr import computeLQR
 
 from utils.dual import calMA, dewel
+from suspension_model.full_car_suspension import FullCarSuspension
+from suspension_model.road_generator import RoadGenerator
 
 import tensorflow as tf
 
@@ -61,7 +63,6 @@ class FullCar(Env):
         self.steps_per_episode = int(steps_per_episode / (100 / self.args.sampling_freq))
 
         self.memory = [[0.0]*self.state_num] * self.args.window_size
-        self.memory_buffer = [[0.0]*self.state_num_wo_action] * (self.args.window_size + 1)
 
         self.done = False
         self.info = {}
@@ -77,6 +78,9 @@ class FullCar(Env):
         self.in_acc_threshold_sm = 18
         self.in_acc_threshold_big = 80
         self.out_acc_threshold = 10
+
+        self.model = FullCarSuspension()
+        self.road_generator = RoadGenerator()
 
 
     def reset(self):
@@ -105,7 +109,6 @@ class FullCar(Env):
         self.done = False
 
         self.memory = [[0.0]*self.state_num] * self.args.window_size
-        self.memory_buffer = [[0.0]*self.state_num_wo_action] * (self.args.window_size + 1)
 
         return np.asarray([0.0] * self.args.window_size * self.state_num)            
 
@@ -169,9 +172,6 @@ class FullCar(Env):
             for i in range(self.args.window_size):
                 reward += self.getReward(self.memory_buffer[i],i)
 
-            if self.args.play == True:
-                self.csv_logger(self.episode_cnt, self.step_cnt, reward, obs_cand, [self.u_fl, self.u_fr, self.u_rl, self.u_rr], [self.vel_L, self.vel_R], [self.road_FL, self.road_FR])
-
             self.step_cnt += 1
 
             if self.step_cnt >= self.steps_per_episode:
@@ -226,10 +226,10 @@ class FullCar(Env):
             self.dewel_on_flag = False
 
         self.road_FL = self.road_zl[self.step_cnt][0];self.road_FR = self.road_zr[self.step_cnt][0]
-        fl1, fl2, fl3, fr1, fr2, fr3, rl1, rl2, rl3, rr1, rr2, rr3, tfl1, tfl2, tfl3, tfr1, tfr2, tfr3, trl1, trl2, trl3, trr1, trr2, trr3, z1, z2, z3, dphi, phi, dtheta, theta = self.simulate(self.road_FL, self.road_FR, self.u_fl, self.u_fr, self.u_rl, self.u_rr)
+        obs = self.model.cal(u=[self.u_fl, self.u_fr, self.u_rl, self.u_rr], w=[self.road_FL, self.road_FR])
 
-        self.state_SH = [fl2,tfl2,fr2,tfr2,rl2,trl2,rr2,trr2]
-        state = [fl1, fl2, fl3, fr1, fr2, fr3, rl1, rl2, rl3, rr1, rr2, rr3, tfl1, tfl2, tfl3, tfr1, tfr2, tfr3, trl1, trl2, trl3, trr1, trr2, trr3, z1, z2, z3, dphi, phi, dtheta, theta]    
+        self.state_SH = [obs["dz_fl"], obs["dz_tfl"], obs["dz_fr"], obs["dz_tfr"], obs["dz_rl"], obs["dz_trl"], obs["dz_rr"], obs["dz_trr"]]
+        state = [obs["ddz_fl"], obs["dz_fl"], obs["z_fl"], obs["ddz_fr"], obs["dz_fr"], obs["z_fr"], obs["ddz_rl"], obs["dz_rl"], obs["z_rl"], obs["ddz_rr"], obs["dz_rr"], obs["z_rr"], obs["ddz_tfl"], obs["dz_tfl"], obs["z_tfl"], obs["ddz_tfr"], obs["dz_tfr"], obs["z_tfr"], obs["ddz_trl"], obs["dz_trl"], obs["z_trl"], obs["ddz_trr"], obs["dz_trr"], obs["z_trr"], obs["ddz"], obs["dz"], obs["z"], obs["dphi"], obs["phi"], obs["dtheta"], obs["theta"]]
 
         return state
 
